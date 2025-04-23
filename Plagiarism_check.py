@@ -3,19 +3,31 @@ import joblib
 import numpy as np
 import re
 import nltk
+import os
+import zipfile
+
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from sentence_transformers import SentenceTransformer
 from sklearn.decomposition import PCA
 
-# Add path to local NLTK data directory (make sure this folder is present in your repo)
-nltk.data.path.append('./nltk_data')
+# === Step 1: Unzip NLTK data if not already extracted ===
+nltk_data_dir = os.path.join(os.getcwd(), 'nltk_data')
+if not os.path.exists(nltk_data_dir):
+    with zipfile.ZipFile('nltk_data.zip', 'r') as zip_ref:
+        zip_ref.extractall(nltk_data_dir)
 
-# Loading stopwords and lemmatizer
-stop_words = set(stopwords.words('english'))
-lemmatizer = WordNetLemmatizer()
+# === Step 2: Set NLTK data path ===
+nltk.data.path.append(nltk_data_dir)
 
-# Function to clean text
+# === Step 3: Load stopwords and lemmatizer ===
+try:
+    stop_words = set(stopwords.words('english'))
+    lemmatizer = WordNetLemmatizer()
+except Exception as e:
+    st.error(f"❌ Error loading NLTK corpora: {e}")
+
+# === Text cleaning function ===
 def cleaning_data(text):
     text = text.lower()
     text = re.sub(r'[^\w\s]', '', text)
@@ -24,7 +36,7 @@ def cleaning_data(text):
     words = [lemmatizer.lemmatize(word) for word in words]
     return " ".join(words)
 
-# Loading trained models
+# === Load models ===
 st.write("✅ App is running... Loading models...")
 
 try:
@@ -34,21 +46,19 @@ try:
 except Exception as e:
     st.error(f"❌ Error loading models: {e}")
 
-# Loading SentenceTransformer model
+# === Load SBERT ===
 try:
     sbert_model = SentenceTransformer('all-MiniLM-L6-v2')
     st.write("✅ SentenceTransformer model loaded successfully!")
 except Exception as e:
     st.error(f"❌ Error loading SentenceTransformer model: {e}")
 
-# Streamlit UI
+# === Main Streamlit app ===
 def main():
     st.title("🔍 Plagiarism Checker")
-
-    # Debugging: Show that the app UI has loaded
     st.write("✅ UI loaded successfully!")
 
-    # Taking Input 
+    # User input
     original_text = st.text_area("Enter Original Text:")
     new_text = st.text_area("Enter New Text to Check:")
 
@@ -56,12 +66,12 @@ def main():
         if original_text and new_text:
             st.write("✅ Processing input...")
 
-            # Apply text cleaning
+            # Clean text
             original_cleaned = cleaning_data(original_text)
             new_cleaned = cleaning_data(new_text)
 
             try:
-                # Converting text to embeddings
+                # SBERT encoding
                 embedded_original = sbert_model.encode([original_cleaned])[0]
                 embedded_new = sbert_model.encode([new_cleaned])[0]
                 st.write("✅ Text encoded successfully!")
@@ -69,11 +79,10 @@ def main():
                 st.error(f"❌ Error in text encoding: {e}")
                 return
 
-            # Using LightGBM for final check
             try:
+                # LightGBM prediction
                 X_input = np.abs(embedded_original - embedded_new).reshape(1, -1)
                 X_input_pca = pca.transform(X_input)
-
                 prediction = lgbm_model.predict(X_input_pca)
                 result = "Plagiarized" if prediction[0] == 1 else "Not Plagiarized"
 
