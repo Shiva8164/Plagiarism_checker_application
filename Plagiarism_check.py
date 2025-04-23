@@ -8,9 +8,8 @@ from nltk.stem import WordNetLemmatizer
 from sentence_transformers import SentenceTransformer
 from sklearn.decomposition import PCA
 
-# Downloading NLTK data
-nltk.download('stopwords')
-nltk.download('wordnet')
+# Add path to local NLTK data directory (make sure this folder is present in your repo)
+nltk.data.path.append('./nltk_data')
 
 # Loading stopwords and lemmatizer
 stop_words = set(stopwords.words('english'))
@@ -87,4 +86,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
